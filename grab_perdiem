@@ -1,0 +1,88 @@
+#Andrew Sager
+#8/10/2017
+
+import collections
+import datetime
+from fiscalyear import *
+import requests
+from requests.auth import HTTPBasicAuth
+import json
+from time import sleep
+import csv
+from openpyxl import load_workbook
+from openpyxl import workbook
+
+
+#*** helper functions from another project ***
+def open_and_parse_url(url):
+	sesh = requests.get(url)
+	raw_json = sesh.text
+	parsed_json = json.loads(raw_json)
+	return parsed_json
+
+def write_report(text, report_name):
+	try:
+		with open(report_name, 'w') as output:
+			output.write(text)
+	except IOError:
+		print("IO Error")
+	return
+
+def write_csv(data, output_file):
+	try:
+		with open(output_file, 'w', newline = '', encoding = 'utf-8') as output:
+			csv_writer = csv.writer(output, dialect = 'excel', quoting = csv.QUOTE_NONNUMERIC)
+			for row in data:
+				csv_writer.writerow(row)
+	except IOError:
+		print("IO Error")
+	return
+
+def write_xlsx(data, workbook):
+	wb = load_workbook(filename = workbook)
+	worksheet = wb.active
+	for i in range(len(data)):
+		A = data[i]
+		for j in range(len(A)):
+			worksheet.cell(row=37+i,column=j+1).value = A[j] #specifically write to lines below the actual perdiem spreadsheet
+	wb.save(workbook) 
+#*** helper functions from another project ***
+
+
+
+def flatten(l):  #seemingly solid code from stackexchange FIXME: replace
+    for el in l: #this would be so easy in a functional language like SML
+        if isinstance(el, collections.Iterable) and not isinstance(el, (str, bytes)):
+            yield from flatten(el)
+        else:
+            yield el
+
+def add_num(s): #maps all digits onto a string
+	nums = ["0","1","2","3","4","5","6","7","8","9"]
+	return map(lambda x: s + x, nums)
+
+def permute(A): #permutes an array of strings to an array of strings with ten copies of the orignals, each with a different digit on the end
+	return flatten(map(lambda x: add_num(x), A))
+
+zipcodes = list(permute(permute(permute(permute(permute([""])))))) #ridiculous way to get all permutations from 00000-99999
+																   #when it would be so easy in SML!
+
+url = "https://inventory.data.gov/api/action/datastore_search?resource_id=8ea44bc4-22ba-4386-b84c-1494ab28964b&filters={\"FiscalYear\":\"" #was getting weird errors because of the {}s 
+mid_url = "\",\"Zip\":\"" 																												   #when using .format so i did this
+end_url = "\"}"																															   #as a quick fix. Seemed to think the string was a dictionary?!
+today = FiscalDate.today() #very helpful package
+big_list = [] #list to which we append the array of [zipcode, relevant monthly data...]
+for item in zipcodes:
+	print(item, end="\r") #\r is a cool way of overwriting the last line written to the console
+	parsed_json = open_and_parse_url(url+str(today.fiscal_year)+mid_url+str(item)+end_url)
+	if (0 < len(parsed_json['result']['records'])):
+		c = parsed_json['result']['records'][0]
+		data = [item, c["Jan"],c["Feb"],c["Mar"],c["Apr"],c["May"],c["Jun"],c["Jul"],c["Aug"],c["Sep"],c["Oct"],c["Nov"],c["Dec"]]
+		big_list.append(data)
+
+#multiple ways of writing the data in case my formatting is off
+write_report(str(big_list),"govdata.txt") #remove this after proofing formatting
+write_csv(big_list, "test_csv.csv") #remove this after proofing formatting
+write_xlsx(big_list, "Per Diem Expense Report.xlsx") #final file!
+
+
