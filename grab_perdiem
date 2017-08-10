@@ -83,6 +83,6 @@ for item in zipcodes:
 #multiple ways of writing the data in case my formatting is off
 write_report(str(big_list),"govdata.txt") #remove this after proofing formatting
 write_csv(big_list, "test_csv.csv") #remove this after proofing formatting
-write_xlsx(big_list, "Per Diem Expense Report.xlsx") #final file!
+write_xlsx(big_list, "Per Diem Expense Report.xlsx") #final file, should exist before running this file
 
 
